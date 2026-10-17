@@ -1,0 +1,105 @@
+@startuml
+!pragma layout smetana
+title Vista de Dominio — Diagrama de Clases UML (entidades JPA = tablas del DDL)
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+hide empty methods
+
+class ClienteApi <<Entity>> {
+  - id : Long <<PK>>
+  - nombre : String
+  - clientId : String <<UK>>
+  - secretHash : String
+  - rol : Rol
+  - activo : Boolean
+  - createdAt : LocalDateTime
+  - updatedAt : LocalDateTime
+}
+
+class CuentaAutorizada <<Entity>> {
+  - id : Long <<PK>>
+  - numeroCuenta : String <<UK>>
+  - titularDocumento : String
+  - tipo : TipoCuenta
+  - activo : Boolean
+  - createdAt : LocalDateTime
+  - updatedAt : LocalDateTime
+}
+
+class Transferencia <<Entity>> {
+  - id : Long <<PK>>
+  - clienteApi : ClienteApi <<FK>>
+  - cuentaOrigen : CuentaAutorizada <<FK>>
+  - cuentaDestino : String
+  - monto : BigDecimal
+  - estado : EstadoTransferencia
+  - referenciaExterna : String <<UK>>
+  - comprobanteNucleo : String
+  - activo : Boolean
+  - createdAt : LocalDateTime
+  - updatedAt : LocalDateTime
+}
+
+class RegistroAuditoria <<Entity>> {
+  - id : Long <<PK>>
+  - clienteApi : ClienteApi <<FK>>
+  - transferencia : Transferencia <<FK>>
+  - numeroCuenta : String
+  - operacion : Operacion
+  - resultado : Resultado
+  - ipOrigen : String
+  - ocurridoEn : LocalDateTime
+  - hashAnterior : String
+  - hashActual : String <<UK>>
+}
+
+enum Rol {
+  BILLETERA
+  AUDITOR
+}
+enum TipoCuenta {
+  AHORROS
+  CORRIENTE
+}
+enum EstadoTransferencia {
+  PENDIENTE
+  CONFIRMADA
+  FALLIDA
+  ANULADA
+}
+enum Operacion {
+  CONSULTA_SALDO
+  TRANSFERENCIA
+  ANULACION
+  CONSULTA_AUDITORIA
+}
+enum Resultado {
+  EXITOSA
+  RECHAZADA
+  FALLIDA
+}
+
+ClienteApi "1" -- "0..*" Transferencia : origina >
+CuentaAutorizada "1" -- "0..*" Transferencia : es origen de >
+ClienteApi "1" -- "0..*" RegistroAuditoria : queda como actor en >
+Transferencia "0..1" -- "1..*" RegistroAuditoria : deja evidencia en >
+
+ClienteApi ..> Rol
+CuentaAutorizada ..> TipoCuenta
+Transferencia ..> EstadoTransferencia
+RegistroAuditoria ..> Operacion
+RegistroAuditoria ..> Resultado
+
+note bottom of RegistroAuditoria
+  Sin campo "activo": es la evidencia y no se borra.
+  La BD bloquea UPDATE y DELETE (trigger, V2).
+  hashActual = huella SHA-256 de este registro + hashAnterior.
+end note
+
+note top of CuentaAutorizada
+  Lista blanca de cuentas expuestas.
+  No guarda saldo: se lee en vivo del núcleo.
+end note
+@enduml
