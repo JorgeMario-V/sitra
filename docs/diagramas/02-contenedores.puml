@@ -1,0 +1,31 @@
+@startuml
+!pragma layout smetana
+title Vista de Contenedores / Capas (C4 Nivel 2) — SITRA
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+actor "Billetera digital\nexterna" as BD
+actor "Auditor /\nOficial de cumplimiento" as AU
+
+package "API SITRA\n[Java 21 + Spring Boot 3.3]" as API {
+  component "Capa de seguridad\n[Spring Security + JWT]\nvalida el token y el rol" as SEG
+  component "Capa de presentación\n[Spring Web — controladores REST]\nTransferenciaController · SaldoController · AuditoriaController" as CTRL
+  component "Capa de negocio\n[Java — servicios]\nTransferenciaService · AuditoriaService" as SRV
+  component "Capa de datos\n[Spring Data JPA + Hibernate]\nrepositorios" as REP
+  component "Conector del núcleo\n[Java — interfaz NucleoConector]\nreal (producción) | simulador (pruebas)" as CON
+}
+
+database "Base de datos SITRA\n[PostgreSQL 16 + Flyway]\ncliente_api · cuenta_autorizada\ntransferencia · registro_auditoria" as DB
+
+component "Núcleo transaccional legado\n«sistema existente, NO se modifica»" as NL
+
+BD --> SEG : HTTPS :8443 · JSON + JWT
+AU --> SEG : HTTPS :8443 · JSON + JWT
+SEG --> CTRL : petición autenticada
+CTRL --> SRV : llamada en proceso
+SRV --> REP : llamada en proceso
+SRV --> CON : llamada en proceso
+REP --> DB : JDBC · TCP :5432
+CON --> NL : interfaz existente del núcleo\n(protocolo por confirmar)
+@enduml

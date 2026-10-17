@@ -1,0 +1,19 @@
+@startuml
+!pragma layout smetana
+title Vista de Contexto (C4 Nivel 1) — SITRA
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+left to right direction
+
+actor "Billetera digital externa\n«sistema externo»" as BD
+actor "Auditor / Oficial de cumplimiento\n«persona»" as AU
+
+rectangle "SITRA\nServicio de Integración y Trazabilidad\n«sistema que se construye»" as S
+
+rectangle "Núcleo transaccional legado\n«sistema existente, NO se modifica»\n20 años · lenguaje propietario · sin documentación" as NL
+
+BD --> S : HU-01 registrar transferencia\nHU-02 consultar saldo\n[HTTPS / JSON]
+AU --> S : HU-03 consultar y verificar\nla bitácora\n[HTTPS / JSON]
+S --> NL : ejecutar transferencia\nleer saldo\n[interfaz que el núcleo ya tiene;\nprotocolo por confirmar con el cliente]
+@enduml
