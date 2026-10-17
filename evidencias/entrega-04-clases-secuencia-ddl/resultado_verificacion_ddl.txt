@@ -1,0 +1,12 @@
+Verificación del script DDL sobre PostgreSQL 16 (16/10/2026)
+
+$ psql -d sitra -f db/migrations/V1__esquema_inicial.sql
+$ psql -d sitra -f db/migrations/V2__bitacora_inmutable.sql
+$ psql -d sitra -f db/pruebas/verificar_restricciones.sql
+NOTICE:  OK 1: UNIQUE rechaza referencia duplicada
+NOTICE:  OK 2: CHECK rechaza monto negativo
+NOTICE:  OK 3: FK rechaza cuenta inexistente
+NOTICE:  OK 4: CHECK rechaza estado inválido
+NOTICE:  OK 5: trigger impide modificar la bitácora
+NOTICE:  OK 6: trigger impide borrar la bitácora
+NOTICE:  OK 7: borrado lógico conserva la transferencia y su registro de auditoría
