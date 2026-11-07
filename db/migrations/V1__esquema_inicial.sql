@@ -1,70 +1,95 @@
 -- =====================================================================
--- SITRA — Servicio de Integración y Trazabilidad (Caso 5, cooperativa)
--- V1: esquema inicial — PostgreSQL 16
--- Requisitos evaluables: PK en toda tabla, FK con REFERENCES, CHECK,
--- UNIQUE, borrado lógico (activo) en toda entidad de negocio e índices.
+-- SITRA — V1: tablas, llaves, CHECK, UNIQUE e índices
+-- Motor: MariaDB 10.4+ (XAMPP). Ejecutar en orden: V1, V2, V3, V4.
 -- =====================================================================
 
--- Sistemas y personas autorizadas a usar SITRA (la billetera y el auditor).
+-- Quién usa SITRA: la billetera externa y el auditor
 CREATE TABLE cliente_api (
-    id            BIGSERIAL     PRIMARY KEY,
-    nombre        VARCHAR(120)  NOT NULL,
-    client_id     VARCHAR(80)   NOT NULL UNIQUE,
-    secret_hash   VARCHAR(255)  NOT NULL,                 -- BCrypt, nunca el secreto en claro
-    rol           VARCHAR(20)   NOT NULL DEFAULT 'BILLETERA'
-                  CHECK (rol IN ('BILLETERA', 'AUDITOR')),
-    activo        BOOLEAN       NOT NULL DEFAULT TRUE,    -- borrado lógico
-    created_at    TIMESTAMP     NOT NULL DEFAULT NOW(),
-    updated_at    TIMESTAMP     NOT NULL DEFAULT NOW()
-);
+    id           BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    nombre       VARCHAR(120)  NOT NULL,
+    client_id    VARCHAR(80)   NOT NULL UNIQUE,
+    secret_hash  VARCHAR(255)  NOT NULL,                              -- BCrypt, nunca el secreto
+    rol          VARCHAR(20)   NOT NULL DEFAULT 'BILLETERA',
+    activo       BOOLEAN       NOT NULL DEFAULT TRUE,                 -- borrado lógico
+    created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_cliente_rol CHECK (rol IN ('BILLETERA', 'AUDITOR'))
+) ENGINE = InnoDB;
 
--- Lista blanca: únicas cuentas que se pueden exponer a la billetera (RF-07).
--- NO guarda saldo: el saldo siempre se lee en vivo del núcleo (RF-01).
+-- Asociado de la cooperativa
+CREATE TABLE asociado (
+    id          BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    documento   VARCHAR(30)   NOT NULL UNIQUE,
+    nombre      VARCHAR(120)  NOT NULL,
+    activo      BOOLEAN       NOT NULL DEFAULT TRUE,                  -- borrado lógico
+    created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE = InnoDB;
+
+-- Cuenta (lista blanca de cuentas expuestas). NO guarda saldo: el saldo vive en el núcleo.
 CREATE TABLE cuenta_autorizada (
-    id                 BIGSERIAL    PRIMARY KEY,
-    numero_cuenta      VARCHAR(30)  NOT NULL UNIQUE,
-    titular_documento  VARCHAR(30)  NOT NULL,
-    tipo               VARCHAR(20)  NOT NULL
-                       CHECK (tipo IN ('AHORROS', 'CORRIENTE')),
-    activo             BOOLEAN      NOT NULL DEFAULT TRUE, -- borrado lógico
-    created_at         TIMESTAMP    NOT NULL DEFAULT NOW(),
-    updated_at         TIMESTAMP    NOT NULL DEFAULT NOW()
-);
+    id             BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    asociado_id    BIGINT       NOT NULL,
+    numero_cuenta  VARCHAR(30)  NOT NULL UNIQUE,
+    tipo           VARCHAR(20)  NOT NULL,
+    activo         BOOLEAN      NOT NULL DEFAULT TRUE,                -- borrado lógico
+    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_cuenta_asociado FOREIGN KEY (asociado_id) REFERENCES asociado(id),
+    CONSTRAINT ck_cuenta_tipo CHECK (tipo IN ('AHORROS', 'CORRIENTE'))
+) ENGINE = InnoDB;
 
--- Entidad principal de la HU-01 y del corte vertical.
+-- Transacción (transferencia)
 CREATE TABLE transferencia (
-    id                  BIGSERIAL      PRIMARY KEY,
-    cliente_api_id      BIGINT         NOT NULL REFERENCES cliente_api(id),
-    cuenta_origen_id    BIGINT         NOT NULL REFERENCES cuenta_autorizada(id),
+    id                  BIGINT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    cliente_api_id      BIGINT         NOT NULL,
+    cuenta_origen_id    BIGINT         NOT NULL,
     cuenta_destino      VARCHAR(30)    NOT NULL,
-    monto               NUMERIC(14,2)  NOT NULL CHECK (monto > 0),
-    estado              VARCHAR(20)    NOT NULL DEFAULT 'PENDIENTE'
-                        CHECK (estado IN ('PENDIENTE', 'CONFIRMADA', 'FALLIDA', 'ANULADA')),
-    referencia_externa  VARCHAR(80)    NOT NULL UNIQUE,   -- evita duplicados (RF-08, 409)
-    comprobante_nucleo  VARCHAR(80),                      -- lo devuelve el núcleo al confirmar
-    activo              BOOLEAN        NOT NULL DEFAULT TRUE, -- borrado lógico (RF-10)
-    created_at          TIMESTAMP      NOT NULL DEFAULT NOW(),
-    updated_at          TIMESTAMP      NOT NULL DEFAULT NOW()
-);
+    monto               DECIMAL(14,2)  NOT NULL,
+    estado              VARCHAR(20)    NOT NULL DEFAULT 'PENDIENTE',
+    referencia_externa  VARCHAR(80)    NOT NULL,                      -- código de operación
+    comprobante_nucleo  VARCHAR(80)    NULL,
+    motivo_rechazo      VARCHAR(255)   NULL,                          -- por qué se rechazó
+    activo              BOOLEAN        NOT NULL DEFAULT TRUE,          -- borrado lógico
+    created_at          DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_transf_cliente FOREIGN KEY (cliente_api_id)   REFERENCES cliente_api(id),
+    CONSTRAINT fk_transf_cuenta  FOREIGN KEY (cuenta_origen_id) REFERENCES cuenta_autorizada(id),
+    CONSTRAINT uq_transf_idempotencia UNIQUE (referencia_externa),    -- llave de idempotencia
+    CONSTRAINT ck_transf_monto  CHECK (monto > 0),                    -- CHECK de monto > 0
+    CONSTRAINT ck_transf_estado CHECK (estado IN ('PENDIENTE','CONFIRMADA','RECHAZADA','FALLIDA','ANULADA'))
+) ENGINE = InnoDB;
 
--- Bitácora de auditoría (RF-03, RF-05, AC-01 Seguridad).
--- No tiene campo "activo": es la evidencia; no se borra ni lógica ni físicamente.
+-- Bitácora de auditoría (obligatoria: la trazabilidad es el atributo crítico).
+-- Guarda también los intentos RECHAZADOS: código, monto intentado y motivo.
+-- monto NO tiene CHECK: debe poder guardar lo que se intentó, aunque sea inválido (ej. -50.000).
 CREATE TABLE registro_auditoria (
-    id                BIGSERIAL    PRIMARY KEY,
-    cliente_api_id    BIGINT       NOT NULL REFERENCES cliente_api(id),   -- quién
-    transferencia_id  BIGINT       REFERENCES transferencia(id),          -- vacío en consultas de saldo
-    numero_cuenta     VARCHAR(30)  NOT NULL,                              -- sobre qué cuenta
-    operacion         VARCHAR(30)  NOT NULL                               -- qué
-                      CHECK (operacion IN ('CONSULTA_SALDO', 'TRANSFERENCIA', 'ANULACION', 'CONSULTA_AUDITORIA')),
-    resultado         VARCHAR(20)  NOT NULL                               -- con qué resultado
-                      CHECK (resultado IN ('EXITOSA', 'RECHAZADA', 'FALLIDA')),
-    ip_origen         VARCHAR(45)  NOT NULL,
-    ocurrido_en       TIMESTAMP    NOT NULL DEFAULT NOW(),                -- cuándo
-    hash_anterior     CHAR(64)     NOT NULL,                              -- huella del registro previo
-    hash_actual       CHAR(64)     NOT NULL UNIQUE                        -- huella de este registro
-);
+    id                  BIGINT         NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    cliente_api_id      BIGINT         NOT NULL,                      -- quién
+    transferencia_id    BIGINT         NULL,                          -- vacío si la transferencia no se pudo crear
+    numero_cuenta       VARCHAR(30)    NOT NULL,                      -- sobre qué cuenta
+    operacion           VARCHAR(30)    NOT NULL,                      -- qué
+    resultado           VARCHAR(20)    NOT NULL,                      -- EXITOSA / RECHAZADA / FALLIDA
+    referencia_externa  VARCHAR(80)    NULL,                          -- código de operación intentado
+    monto               DECIMAL(14,2)  NULL,                          -- monto intentado
+    motivo              VARCHAR(255)   NULL,                          -- por qué se rechazó
+    ip_origen           VARCHAR(45)    NOT NULL DEFAULT 'local',
+    ocurrido_en         DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- cuándo
+    hash_anterior       CHAR(64)       NULL,
+    hash_actual         CHAR(64)       NULL UNIQUE,
+    CONSTRAINT fk_audit_cliente FOREIGN KEY (cliente_api_id)   REFERENCES cliente_api(id),
+    CONSTRAINT fk_audit_transf  FOREIGN KEY (transferencia_id) REFERENCES transferencia(id),
+    CONSTRAINT ck_audit_operacion CHECK (operacion IN ('CONSULTA_SALDO','TRANSFERENCIA','ANULACION','CONSULTA_AUDITORIA')),
+    CONSTRAINT ck_audit_resultado CHECK (resultado IN ('EXITOSA','RECHAZADA','FALLIDA'))
+) ENGINE = InnoDB;
 
--- Índices justificados por las consultas de las HU
-CREATE INDEX idx_transferencia_cuenta  ON transferencia(cuenta_origen_id);            -- historial por cuenta
-CREATE INDEX idx_transferencia_activas ON transferencia(estado) WHERE activo = TRUE;  -- listado sin anuladas
-CREATE INDEX idx_auditoria_cuenta_fecha ON registro_auditoria(numero_cuenta, ocurrido_en); -- HU-03: auditor consulta por cuenta y rango de fechas (meta ≤ 5 s)
+-- Simulador del núcleo legado: aquí vive el SALDO (SITRA no guarda saldos)
+CREATE TABLE nucleo_simulado_cuenta (
+    numero_cuenta  VARCHAR(30)    NOT NULL PRIMARY KEY,
+    saldo          DECIMAL(14,2)  NOT NULL,
+    CONSTRAINT ck_nucleo_saldo CHECK (saldo >= 0)
+) ENGINE = InnoDB;
+
+-- Índices justificados
+CREATE INDEX idx_transferencia_cuenta   ON transferencia (cuenta_origen_id);
+CREATE INDEX idx_auditoria_cuenta_fecha ON registro_auditoria (numero_cuenta, ocurrido_en);
