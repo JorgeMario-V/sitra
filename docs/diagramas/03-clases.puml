@@ -1,5 +1,4 @@
 @startuml
-!pragma layout smetana
 title Vista de Dominio — Diagrama de Clases UML (entidades JPA = tablas del DDL)
 skinparam monochrome true
 skinparam shadowing false
@@ -7,12 +6,10 @@ skinparam defaultFontName Arial
 skinparam classAttributeIconSize 0
 hide empty methods
 
-class ClienteApi <<Entity>> {
+class Asociado <<Entity>> {
   - id : Long <<PK>>
+  - documento : String <<UK>>
   - nombre : String
-  - clientId : String <<UK>>
-  - secretHash : String
-  - rol : Rol
   - activo : Boolean
   - createdAt : LocalDateTime
   - updatedAt : LocalDateTime
@@ -20,9 +17,20 @@ class ClienteApi <<Entity>> {
 
 class CuentaAutorizada <<Entity>> {
   - id : Long <<PK>>
+  - asociado : Asociado <<FK>>
   - numeroCuenta : String <<UK>>
-  - titularDocumento : String
   - tipo : TipoCuenta
+  - activo : Boolean
+  - createdAt : LocalDateTime
+  - updatedAt : LocalDateTime
+}
+
+class ClienteApi <<Entity>> {
+  - id : Long <<PK>>
+  - nombre : String
+  - clientId : String <<UK>>
+  - secretHash : String
+  - rol : Rol
   - activo : Boolean
   - createdAt : LocalDateTime
   - updatedAt : LocalDateTime
@@ -36,19 +44,30 @@ class Transferencia <<Entity>> {
   - monto : BigDecimal
   - estado : EstadoTransferencia
   - referenciaExterna : String <<UK>>
+  - ipOrigen : String
   - comprobanteNucleo : String
+  - motivoRechazo : String
   - activo : Boolean
   - createdAt : LocalDateTime
   - updatedAt : LocalDateTime
+  --
+  + confirmar(comprobante)
+  + rechazar(motivo)
+  + marcarFallida(motivo)
+  + corregir(destino, monto, ip)
+  + anular()
 }
 
-class RegistroAuditoria <<Entity>> {
+class RegistroAuditoria <<Entity>> <<Immutable>> {
   - id : Long <<PK>>
   - clienteApi : ClienteApi <<FK>>
   - transferencia : Transferencia <<FK>>
   - numeroCuenta : String
   - operacion : Operacion
   - resultado : Resultado
+  - referenciaExterna : String
+  - monto : BigDecimal
+  - motivo : String
   - ipOrigen : String
   - ocurridoEn : LocalDateTime
   - hashAnterior : String
@@ -66,6 +85,7 @@ enum TipoCuenta {
 enum EstadoTransferencia {
   PENDIENTE
   CONFIRMADA
+  RECHAZADA
   FALLIDA
   ANULADA
 }
@@ -81,6 +101,7 @@ enum Resultado {
   FALLIDA
 }
 
+Asociado "1" -- "0..*" CuentaAutorizada : es dueño de >
 ClienteApi "1" -- "0..*" Transferencia : origina >
 CuentaAutorizada "1" -- "0..*" Transferencia : es origen de >
 ClienteApi "1" -- "0..*" RegistroAuditoria : queda como actor en >
@@ -94,8 +115,9 @@ RegistroAuditoria ..> Resultado
 
 note bottom of RegistroAuditoria
   Sin campo "activo": es la evidencia y no se borra.
-  La BD bloquea UPDATE y DELETE (trigger, V2).
-  hashActual = huella SHA-256 de este registro + hashAnterior.
+  Triggers de la BD: bloquean UPDATE y DELETE y calculan
+  hashActual = SHA-256(fila + hashAnterior).
+  transferencia vacía = intento rechazado antes de crearla.
 end note
 
 note top of CuentaAutorizada

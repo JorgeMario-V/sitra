@@ -1,10 +1,10 @@
 @startuml
-title HU-01 "Registrar transferencia" — Diagrama de Secuencia UML (N-Capas)
+title HU-01 "Registrar transferencia" (POST) — Diagrama de Secuencia UML (N-Capas)
 skinparam monochrome true
 skinparam shadowing false
 skinparam defaultFontName Arial
 skinparam defaultFontSize 13
-skinparam maxMessageSize 170
+skinparam maxMessageSize 190
 skinparam ParticipantPadding 4
 skinparam BoxPadding 4
 autonumber
@@ -13,49 +13,44 @@ actor "Billetera\nexterna" as BD
 participant "FiltroJwt\n«seguridad»" as SEG
 participant "Transferencia\nController\n«presentación»" as CTRL
 participant "Transferencia\nService\n«negocio»" as SRV
+participant "Auditoria\nService\n«negocio»" as AUD
 participant "Transferencia\nRepository\n«datos»" as REP
 participant "Nucleo\nConector\n«conector»" as CON
-participant "Auditoria\nService\n«negocio»" as AUD
-database "PostgreSQL" as DB
+database "MariaDB\n(+ triggers)" as DB
 participant "Núcleo\nlegado" as NL
 
-BD -> SEG : POST /api/v1/transferencias + JWT
+BD -> SEG : POST /api/v1/transferencias\nAuthorization: Bearer <token>
 
-alt token ausente o inválido
+alt token ausente, alterado o vencido
   SEG --> BD : 401 Unauthorized
 else token válido
-  SEG -> CTRL : petición autenticada
-  CTRL -> SRV : registrar(datos)
-  SRV -> REP : existePorReferencia()
+  SEG -> CTRL : petición + clientId del token
+  CTRL -> SRV : registrar(clientId, datos, ip)
+  SRV -> REP : ¿código repetido? ¿cuenta autorizada?
   REP -> DB : SELECT
 
-  alt referencia repetida
-    SRV --> CTRL : ReferenciaDuplicada
-    CTRL --> BD : 409 Conflict
-  else referencia nueva
-    SRV -> REP : guardar(PENDIENTE)
-    REP -> DB : INSERT
-    SRV -> CON : ejecutarTransferencia()
-    CON -> NL : interfaz existente
-
-    alt núcleo no responde en 5 s
-      CON --> SRV : NucleoNoDisponible
-      SRV -> REP : estado = FALLIDA
-      REP -> DB : UPDATE
-      SRV -> AUD : registrar(FALLIDA)
-      AUD -> DB : INSERT bitácora
-      CTRL <-- SRV : ServicioNoDisponible
-      CTRL --> BD : 503 Service Unavailable
-    else camino feliz
+  alt monto ≤ 0 (400) · código repetido (409) · cuenta fuera de la lista blanca (404)
+    SRV -> AUD : registrar(RECHAZADA, motivo)\n[transacción propia: REQUIRES_NEW]
+    AUD -> DB : INSERT bitácora (huella por trigger)
+    SRV --> CTRL : SolicitudRechazadaException
+    CTRL --> BD : 400 / 409 / 404 + motivo
+  else datos válidos
+    SRV -> CON : ejecutarTransferencia(cuenta, monto)
+    CON -> NL : interfaz existente del núcleo
+    alt el núcleo no responde
+      CON --> SRV : NucleoNoDisponible → estado FALLIDA
+    else el núcleo la rechaza (saldo)
+      NL --> CON : rechazo
+      CON --> SRV : rechazada → estado RECHAZADA
+    else el núcleo la aprueba
       NL --> CON : comprobante
-      CON --> SRV : comprobante
-      SRV -> REP : estado = CONFIRMADA
-      REP -> DB : UPDATE
-      SRV -> AUD : registrar(EXITOSA)
-      AUD -> DB : INSERT bitácora\n(hashAnterior, hashActual)
-      SRV --> CTRL : confirmada
-      CTRL --> BD : 201 Created + JSON
+      CON --> SRV : aprobada → estado CONFIRMADA
     end
+    SRV -> REP : save(transferencia con su estado final)
+    REP -> DB : INSERT transferencia
+    DB -> DB : trigger: INSERT bitácora\n(hashAnterior → hashActual)
+    SRV --> CTRL : transferencia
+    CTRL --> BD : 201 CONFIRMADA · 422 RECHAZADA · 503 FALLIDA
   end
 end
 @enduml

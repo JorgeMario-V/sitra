@@ -1,0 +1,37 @@
+@startuml
+title Vista de Despliegue — SITRA (todo sobre infraestructura que ya existe)
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+node "Billetera digital externa\n«sistema de un tercero»" as BD
+node "Equipo del auditor\n«PC existente»" as PCA
+
+node "Equipo existente de la cooperativa\n«Windows»" as EQ {
+  node "Java 21 (JRE)" as JRE {
+    artifact "sitra-1.0.0.jar\n[Spring Boot, Tomcat embebido]\npuerto 8080" as JAR
+  }
+  node "XAMPP" as XAMPP {
+    database "MariaDB 10.4\nbase: sitra\npuerto 3306" as DB
+    artifact "HeidiSQL" as HS
+  }
+}
+
+node "Servidor del núcleo legado\n«existente, NO se modifica»" as SN {
+  artifact "Núcleo transaccional\n(lenguaje propietario)" as NL
+}
+
+BD --> JAR : HTTP :8080 en laboratorio\n(HTTPS en producción)\nJSON + token JWT
+PCA --> JAR : HTTP :8080 · /api/v1/auditoria
+JAR --> DB : JDBC · TCP :3306\n(solo localhost / red interna)
+HS --> DB : TCP :3306
+JAR --> NL : interfaz existente del núcleo\n(protocolo por confirmar)
+
+note bottom of EQ
+  Variables de entorno (solo los nombres; los valores NUNCA van al repositorio):
+  SITRA_PORT · SITRA_DB_URL · SITRA_DB_USER · SITRA_DB_PASSWORD
+  SITRA_NUCLEO_MODO (simulado | sin-respuesta | legado)
+  SITRA_JWT_SECRET (mín. 32 caracteres) · SITRA_JWT_MINUTOS
+  Ver .env.example y la sección "Instalar y ejecutar" del README.md
+end note
+@enduml
