@@ -1,0 +1,892 @@
+{
+  "info": {
+    "_postman_id": "cdc33aaa-9b7e-51b2-85ae-d17dd8686ee8",
+    "name": "SITRA — Corte vertical (CRUD de Transferencia + JWT)",
+    "description": "Ejecutar en orden con el Runner de Postman (19 peticiones, todas con tests automáticos). Requisitos: XAMPP con MySQL encendido, db/instalar_todo.sql ejecutado y la API corriendo en el puerto 8080.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Token de la billetera (200)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/auth/token",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "token"
+          ]
+        },
+        "description": "Cambia clientId + secreto por un token JWT. Prepara los códigos de operación de esta corrida.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"billetera-externa\",\n  \"secreto\": \"billetera-2026\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"ref\", \"OP-\" + Date.now());",
+              "pm.collectionVariables.set(\"ref2\", \"OP-\" + (Date.now() + 1));",
+              "const d = new Date(); pm.collectionVariables.set(\"hoy\", d.getFullYear() + \"-\" + String(d.getMonth() + 1).padStart(2, \"0\") + \"-\" + String(d.getDate()).padStart(2, \"0\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200 y entrega token\", function () { pm.response.to.have.status(200); });",
+              "pm.collectionVariables.set(\"token_billetera\", pm.response.json().token);",
+              "pm.test(\"Tipo Bearer\", function () { pm.expect(pm.response.json().tipo).to.eql(\"Bearer\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Secreto incorrecto (401)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/auth/token",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "token"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"billetera-externa\",\n  \"secreto\": \"incorrecto\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"401 con secreto incorrecto\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Transferencia SIN token (401) — AC-01",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigen\": \"AH-1001\",\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": 300000,\n  \"referenciaExterna\": \"{{ref}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"401 sin token: nunca llega al controlador\", function () { pm.response.to.have.status(401); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 CREATE — transferencia de 300.000 (201)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigen\": \"AH-1001\",\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": 300000,\n  \"referenciaExterna\": \"{{ref}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"201 Created\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"Queda CONFIRMADA con comprobante del núcleo\", function () { const j = pm.response.json(); pm.expect(j.estado).to.eql(\"CONFIRMADA\"); pm.expect(j.comprobanteNucleo).to.be.a(\"string\"); });",
+              "pm.collectionVariables.set(\"id\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Mismo código de operación (409) — idempotencia",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigen\": \"AH-1001\",\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": 300000,\n  \"referenciaExterna\": \"{{ref}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"409: la operación no se duplica\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Monto negativo (400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigen\": \"AH-1001\",\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": -50000,\n  \"referenciaExterna\": \"{{ref2}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"400: monto inválido (queda RECHAZADO en la bitácora)\", function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Cuenta fuera de la lista blanca (404)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigen\": \"AH-9999\",\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": 1000,\n  \"referenciaExterna\": \"{{ref2}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"404: cuenta no autorizada\", function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 HU-02 — saldo de AH-1001 (200)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/cuentas/AH-1001/saldo",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cuentas",
+            "AH-1001",
+            "saldo"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200 con el saldo leído del núcleo\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Trae saldo\", function () { pm.expect(pm.response.json().saldo).to.be.a(\"number\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 READ — listar (200 y aparece la creada)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La transferencia creada aparece\", function () { const id = Number(pm.collectionVariables.get(\"id\")); pm.expect(pm.response.json().map(t => t.id)).to.include(id); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 READ — consultar por id (200)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias/{{id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias",
+            "{{id}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Es la misma referencia\", function () { pm.expect(pm.response.json().referenciaExterna).to.eql(pm.collectionVariables.get(\"ref\")); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 UPDATE sobre una CONFIRMADA (409)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias/{{id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias",
+            "{{id}}"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": 100000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"409: ya movió dinero, no se corrige (ADR-004)\", function () { pm.response.to.have.status(409); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 CREATE — 5.000.000, el núcleo la rechaza (422)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaOrigen\": \"AH-1001\",\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": 5000000,\n  \"referenciaExterna\": \"{{ref2}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"422: saldo insuficiente\", function () { pm.response.to.have.status(422); });",
+              "pm.test(\"Queda RECHAZADA con motivo\", function () { pm.expect(pm.response.json().estado).to.eql(\"RECHAZADA\"); });",
+              "pm.collectionVariables.set(\"id_rechazada\", pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 UPDATE — corregir y reintentar la RECHAZADA (200)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias/{{id_rechazada}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias",
+            "{{id_rechazada}}"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cuentaDestino\": \"BILLETERA-EXTERNA\",\n  \"monto\": 100000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Ahora queda CONFIRMADA con el mismo código\", function () { const j = pm.response.json(); pm.expect(j.estado).to.eql(\"CONFIRMADA\"); pm.expect(j.referenciaExterna).to.eql(pm.collectionVariables.get(\"ref2\")); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 DELETE — anular la de 300.000 (204)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias/{{id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias",
+            "{{id}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"204: borrado lógico (ANULADA, activo = false) con reverso en el núcleo\", function () { pm.response.to.have.status(204); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 READ después de anular (404)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/transferencias/{{id}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "transferencias",
+            "{{id}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"404: ya no aparece entre las activas\", function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Token del auditor (200)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/auth/token",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "token"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"clientId\": \"auditor-cumplimiento\",\n  \"secreto\": \"auditor-2026\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "pm.collectionVariables.set(\"token_auditor\", pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Bitácora con token de billetera (403)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_billetera}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/auditoria?cuenta=AH-1001",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auditoria"
+          ],
+          "query": [
+            {
+              "key": "cuenta",
+              "value": "AH-1001"
+            }
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"403: la billetera no puede ver la bitácora\", function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 HU-03 — bitácora de AH-1001 hoy (200)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_auditor}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/auditoria?cuenta=AH-1001&desde={{hoy}}&hasta={{hoy}}",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auditoria"
+          ],
+          "query": [
+            {
+              "key": "cuenta",
+              "value": "AH-1001"
+            },
+            {
+              "key": "desde",
+              "value": "{{hoy}}"
+            },
+            {
+              "key": "hasta",
+              "value": "{{hoy}}"
+            }
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Todo quedó registrado: creada, rechazos, corrección y anulación\", function () { const filas = pm.response.json(); const ref = pm.collectionVariables.get(\"ref\"); const ref2 = pm.collectionVariables.get(\"ref2\"); const ops = filas.filter(f => f.referenciaExterna === ref).map(f => f.operacion + \":\" + f.resultado); pm.expect(ops).to.include(\"TRANSFERENCIA:EXITOSA\"); pm.expect(ops).to.include(\"TRANSFERENCIA:RECHAZADA\"); pm.expect(ops).to.include(\"ANULACION:EXITOSA\"); pm.expect(filas.filter(f => f.referenciaExterna === ref2).length).to.be.at.least(2); });",
+              "pm.test(\"Cada fila trae su huella\", function () { pm.response.json().forEach(f => pm.expect(f.hashActual).to.have.lengthOf(64)); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 HU-03 — verificar la cadena de huellas (200, íntegra)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token_auditor}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base}}/api/v1/auditoria/verificacion",
+          "host": [
+            "{{base}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auditoria",
+            "verificacion"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Nadie alteró ni borró filas\", function () { pm.expect(pm.response.json().integra).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "token_billetera",
+      "value": ""
+    },
+    {
+      "key": "token_auditor",
+      "value": ""
+    },
+    {
+      "key": "id",
+      "value": ""
+    },
+    {
+      "key": "id_rechazada",
+      "value": ""
+    },
+    {
+      "key": "ref",
+      "value": ""
+    },
+    {
+      "key": "ref2",
+      "value": ""
+    },
+    {
+      "key": "hoy",
+      "value": ""
+    }
+  ]
+}
