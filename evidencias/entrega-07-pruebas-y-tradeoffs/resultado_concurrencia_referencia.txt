@@ -1,0 +1,47 @@
+Medición de referencia (no es la del equipo con XAMPP): ejecutada con db/pruebas/concurrencia.sh
+sobre una base recién creada con db/instalar_todo.sql. La versión de Windows del mismo script es
+db/pruebas/concurrencia.cmd y su salida se guarda en resultado_concurrencia.txt.
+
+Prueba de concurrencia SITRA - 2026-11-07 15:05:50
+Motor: 10.11.14-MariaDB-0ubuntu0.24.04.1
+Lanzando 6 transacciones simultaneas...
+  sesion 3: --------------
+  sesion 3: INSERT INTO registro_auditoria (cliente_api_id, numero_cuenta, operacion, resultado, ip_origen, ocurrido_en) VALUES (1, 'AH-1001', 'CONSULTA_SALDO', 'EXITOSA', 'concurrencia-3', NOW())
+  sesion 3: --------------
+  sesion 3: 
+  sesion 3: ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+  sesion 2: --------------
+  sesion 2: INSERT INTO registro_auditoria (cliente_api_id, numero_cuenta, operacion, resultado, ip_origen, ocurrido_en) VALUES (1, 'AH-1001', 'CONSULTA_SALDO', 'EXITOSA', 'concurrencia-2', NOW())
+  sesion 2: --------------
+  sesion 2: 
+  sesion 2: ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+  sesion 6: --------------
+  sesion 6: INSERT INTO registro_auditoria (cliente_api_id, numero_cuenta, operacion, resultado, ip_origen, ocurrido_en) VALUES (1, 'AH-1001', 'CONSULTA_SALDO', 'EXITOSA', 'concurrencia-6', NOW())
+  sesion 6: --------------
+  sesion 6: 
+  sesion 6: ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+  sesion 5: --------------
+  sesion 5: INSERT INTO registro_auditoria (cliente_api_id, numero_cuenta, operacion, resultado, ip_origen, ocurrido_en) VALUES (1, 'AH-1001', 'CONSULTA_SALDO', 'EXITOSA', 'concurrencia-5', NOW())
+  sesion 5: --------------
+  sesion 5: 
+  sesion 5: ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+
+1) Inserciones que quedaron guardadas (de 6 intentos):
++----------------+----+
+| sesion         | id |
++----------------+----+
+| concurrencia-1 |  1 |
+| concurrencia-4 |  2 |
++----------------+----+
++-----------+------------------------+
+| guardadas | deshechas_por_deadlock |
++-----------+------------------------+
+|         2 |                      4 |
++-----------+------------------------+
+2) Verificacion de la cadena de huellas (todas deben decir OK):
++------+--------+--------+
+| id   | cadena | huella |
++------+--------+--------+
+|    1 | OK     | OK     |
+|    2 | OK     | OK     |
++------+--------+--------+
