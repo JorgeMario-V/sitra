@@ -35,15 +35,30 @@ una huella SHA-256 encadenada. Detalle en [`docs/DAS.pdf`](docs/DAS.pdf) y en [`
 
 - **XAMPP** (trae MariaDB y HeidiSQL).
 - **JDK 21**.
-- **VS Code** con el *Extension Pack for Java* (o Maven 3.9+ si prefiere la terminal).
+- **VS Code** con el *Extension Pack for Java*.
 - **Postman**.
-- Conexión a Internet la primera vez (Maven descarga las dependencias).
+- Conexión a Internet la primera vez (se descargan Maven y las dependencias).
+
+No hace falta instalar Maven: el repositorio trae el **Maven Wrapper** (`mvnw.cmd` en Windows,
+`mvnw` en Linux/macOS), que descarga la versión correcta de Maven la primera vez que se usa.
+Los comandos de esta guía se escriben en la **terminal de VS Code** (Terminal → New Terminal, perfil
+*JavaSE-21*), que ya tiene configurado Java; si usa CMD, `java -version` debe mostrar la versión 21.
 
 ### 2. Crear la base de datos
 
-1. Abra el **XAMPP Control Panel** y presione **Start** en **MySQL**.
-2. Abra **HeidiSQL**, conéctese a `127.0.0.1` con el usuario `root` (sin contraseña).
-3. Archivo → Cargar archivo SQL → `db/instalar_todo.sql` → presione **F9**.
+Primero abra el **XAMPP Control Panel** y presione **Start** en **MySQL**. Luego use una de estas dos opciones:
+
+**Opción A — por consola** (desde la carpeta del repositorio):
+
+```cmd
+C:\xampp\mysql\bin\mysql.exe -u root --default-character-set=utf8mb4 < db\instalar_todo.sql
+```
+
+Si XAMPP está instalado en otra carpeta, cambie la ruta `C:\xampp`. El comando no muestra nada si
+todo salió bien.
+
+**Opción B — con HeidiSQL:** conéctese a `127.0.0.1` con el usuario `root` (sin contraseña),
+Archivo → Cargar archivo SQL → `db/instalar_todo.sql` → presione **F9**.
 
 Esto borra y crea la base `sitra`, aplica las migraciones `V1` a `V4` y carga los datos de prueba.
 Volver a ejecutarlo deja todo como nuevo.
@@ -52,7 +67,7 @@ Volver a ejecutarlo deja todo como nuevo.
 
 - **VS Code:** abra la carpeta del repositorio, abra
   `src/main/java/co/coop/sitra/SitraApplication.java` y presione **Run**.
-- **Terminal (CMD):** `mvn spring-boot:run`
+- **Terminal:** `mvnw.cmd spring-boot:run`
 
 La API queda en `http://localhost:8080`. En el arranque aparece una advertencia de que
 `SITRA_JWT_SECRET` no está definido: es normal en el laboratorio (se genera un secreto aleatorio).
@@ -60,10 +75,24 @@ La API queda en `http://localhost:8080`. En el arranque aparece una advertencia 
 ### 4. Probar
 
 - **Postman:** Import → `postman/coleccion-corte-vertical.json` → clic derecho en la colección →
-  **Run collection** → **Run**. Son 19 peticiones en orden, todas con tests automáticos.
-- **Pruebas unitarias** (no necesitan base de datos): `mvn test`
-- **Prueba de integración** (necesita MySQL encendido y el paso 2 hecho): `mvn test -Pintegracion`
+  **Run collection** → **Run**. Son 19 peticiones en orden con 30 tests automáticos (la petición 18
+  mide además que la consulta del auditor responda en menos de 5 segundos).
+- **Pruebas unitarias** (no necesitan base de datos): `mvnw.cmd test`
+- **Pruebas unitarias + integración** (necesitan MySQL encendido y el paso 2 hecho): `mvnw.cmd test -Pintegracion`
 - En VS Code: pestaña **Testing** → ejecutar todo (la de integración también necesita MariaDB).
+
+### 5. Generar las evidencias de ejecución
+
+Con MySQL encendido, desde la carpeta del repositorio:
+
+```cmd
+scripts\generar_evidencias.cmd
+```
+
+El script recrea la base, ejecuta la verificación del esquema en MariaDB, la prueba del usuario de
+mínimo privilegio, la prueba de concurrencia y las pruebas JUnit, y guarda cada salida en
+`evidencias/entrega-07-pruebas-y-tradeoffs/` (los archivos que cita el DAS en las secciones 5.2, 5.4 y 6.1).
+La API no necesita estar corriendo. Tarda unos minutos la primera vez porque descarga Maven.
 
 ### Credenciales de prueba (solo laboratorio)
 
@@ -92,7 +121,7 @@ Para ver el flujo de falla del núcleo (AC-02) en CMD:
 
 ```cmd
 set SITRA_NUCLEO_MODO=sin-respuesta
-mvn spring-boot:run
+mvnw.cmd spring-boot:run
 ```
 
 ## Endpoints
@@ -128,23 +157,28 @@ de huellas.
 
 | Carpeta | Contenido |
 |---|---|
-| `docs/` | DAS v1.0 en Word y PDF, `adr/` (ADR-001 a ADR-005) y `diagramas/` (PlantUML + PNG) |
+| `docs/` | DAS v1.1 en Word y PDF (formato APA), `adr/` (ADR-001 a ADR-005) y `diagramas/` (PlantUML + PNG) |
 | `db/migrations/` | `V1` tablas · `V2` triggers de la bitácora · `V3` registro de rechazados · `V4` IP de origen |
-| `db/` | `instalar_todo.sql`, `datos_prueba.sql`, `pruebas/demo_sustentacion.sql`, `produccion/usuario_minimo_privilegio.sql` |
+| `db/` | `instalar_todo.sql`, `datos_prueba.sql`, `pruebas/` (demostración y prueba de concurrencia), `produccion/usuario_minimo_privilegio.sql` |
+| `scripts/` | `generar_evidencias.cmd`: ejecuta las verificaciones y guarda sus salidas en `evidencias/` |
+| `mvnw`, `mvnw.cmd`, `.mvn/` | Maven Wrapper: compila, ejecuta y prueba sin instalar Maven |
 | `src/main/java/co/coop/sitra/` | `security`, `controller`, `service`, `repository`, `model`, `integration`, `dto`, `exception` |
 | `src/test/java/co/coop/sitra/` | Pruebas unitarias (JWT, servicio) e integración (corte vertical completo) |
-| `postman/` | Colección del corte vertical (19 peticiones con tests) |
+| `postman/` | Colección del corte vertical (19 peticiones, 30 tests) |
 | `evidencias/` | Entregas semanales, una carpeta por clase |
 
 ## Entregas
 
-| Clase | Fecha | Entrega | Estado |
-|---|---|---|---|
-| 1 | 26/09/2026 | Ficha de drivers + Sección 1 del DAS | ✅ [`entrega-01`](evidencias/entrega-01-drivers-y-seccion1) |
-| 2 | 03/10/2026 | Sección 2: patrón N-Capas y pila tecnológica | ✅ [`entrega-02`](evidencias/entrega-02-patron-y-pila) |
-| 3 | 10/10/2026 | Vistas de Contexto y Contenedores | ✅ [`entrega-03`](evidencias/entrega-03-contexto-y-contenedores) |
-| 4 | 17/10/2026 | Clases, Secuencia y script SQL DDL | ✅ [`entrega-04`](evidencias/entrega-04-clases-secuencia-ddl) |
-| 5 | 24/10/2026 | ADR, Vista de Despliegue y arranque del corte vertical | ✅ [`entrega-05`](evidencias/entrega-05-adr-despliegue-arranque) |
-| 6 | 07/11/2026 | CRUD punta a punta con JWT (5.3) | ✅ [`entrega-06`](evidencias/entrega-06-crud-jwt) |
-| 7 | 14/11/2026 | Pruebas, trade-offs y riesgos (5.4 y 6) | ✅ [`entrega-07`](evidencias/entrega-07-pruebas-y-tradeoffs) |
-| 8 | 21/11/2026 | Entrega final: DAS v1.0 + repositorio | ✅ [`entrega-08`](evidencias/entrega-08-entrega-final) |
+La columna "Subida a GitHub" muestra cuándo llegó cada entrega al repositorio; puede diferir de la
+fecha de la clase (ver el control de versiones del DAS).
+
+| Clase | Fecha de la clase | Entrega | Subida a GitHub | Estado |
+|---|---|---|---|---|
+| 1 | 26/09/2026 | Ficha de drivers + Sección 1 del DAS | 26/09/2026 | ✅ [`entrega-01`](evidencias/entrega-01-drivers-y-seccion1) |
+| 2 | 03/10/2026 | Sección 2: patrón N-Capas y pila tecnológica | 16/10/2026 | ✅ [`entrega-02`](evidencias/entrega-02-patron-y-pila) |
+| 3 | 10/10/2026 | Vistas de Contexto y Contenedores | 16/10/2026 | ✅ [`entrega-03`](evidencias/entrega-03-contexto-y-contenedores) |
+| 4 | 17/10/2026 | Clases, Secuencia y script SQL DDL | 16/10/2026 | ✅ [`entrega-04`](evidencias/entrega-04-clases-secuencia-ddl) |
+| 5 | 24/10/2026 | ADR, Vista de Despliegue y arranque del corte vertical | 06/11/2026 | ✅ [`entrega-05`](evidencias/entrega-05-adr-despliegue-arranque) |
+| 6 | 07/11/2026 | CRUD punta a punta con JWT (5.3) | 06/11/2026 | ✅ [`entrega-06`](evidencias/entrega-06-crud-jwt) |
+| 7 | 14/11/2026 | Pruebas, trade-offs y riesgos (5.4 y 6) | 06/11/2026 | Adelantada (06/11) [`entrega-07`](evidencias/entrega-07-pruebas-y-tradeoffs) |
+| 8 | 21/11/2026 | Entrega final: DAS v1.1 + repositorio | 06/11/2026 (v1.0) y 07/11/2026 (v1.1) | Adelantada (06/11) [`entrega-08`](evidencias/entrega-08-entrega-final) |
