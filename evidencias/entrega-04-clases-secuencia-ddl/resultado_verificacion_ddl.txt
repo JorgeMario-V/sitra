@@ -1,3 +1,10 @@
+NOTA (07/11/2026): ARCHIVO HISTÓRICO. Esta verificación se hizo en PostgreSQL 16 el 16/10/2026,
+antes del ADR-002 (cambio a MariaDB). El script que cita, db/pruebas/verificar_restricciones.sql,
+se retiró del repositorio con ese cambio. La verificación vigente, en MariaDB, está en
+evidencias/entrega-07-pruebas-y-tradeoffs/resultado_verificacion_mariadb.txt
+(se genera con scripts\generar_evidencias.cmd).
+------------------------------------------------------------------------------------------
+
 Verificación del script DDL sobre PostgreSQL 16 (16/10/2026)
 
 $ psql -d sitra -f db/migrations/V1__esquema_inicial.sql

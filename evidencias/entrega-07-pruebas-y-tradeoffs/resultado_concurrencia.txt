@@ -1,0 +1,31 @@
+Prueba de concurrencia SITRA - 08/11/2026 20:29:23.12
+Motor: 10.4.32-MariaDB
+Lanzando 6 transacciones simultaneas...
+ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+ERROR 1213 (40001) at line 1: Deadlock found when trying to get lock; try restarting transaction
+
+1) Inserciones que quedaron guardadas (de 6 intentos):
++----------------+----+
+| sesion         | id |
++----------------+----+
+| concurrencia-1 |  5 |
+| concurrencia-2 | 10 |
++----------------+----+
++-----------+------------------------+
+| guardadas | deshechas_por_deadlock |
++-----------+------------------------+
+|         2 |                      4 |
++-----------+------------------------+
+2) Verificacion de la cadena de huellas (todas deben decir OK):
++------+--------+--------+
+| id   | cadena | huella |
++------+--------+--------+
+|    1 | OK     | OK     |
+|    2 | OK     | OK     |
+|    3 | OK     | OK     |
+|    4 | OK     | OK     |
+|    5 | OK     | OK     |
+|   10 | OK     | OK     |
++------+--------+--------+

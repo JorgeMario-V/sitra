@@ -1,0 +1,11 @@
+Prueba del usuario de minimo privilegio - 08/11/2026 20:29:22.95
+Se crea un usuario temporal con los mismos permisos de db\produccion\usuario_minimo_privilegio.sql:
+SELECT, INSERT, UPDATE y EXECUTE sobre la base sitra. Su clave es aleatoria y no se guarda.
+Se intenta desactivar un trigger de la bitacora y borrar una transferencia.
+Los dos intentos deben fallar con ERROR 1142. Al final el usuario temporal se elimina.
+
+Intento 1: DROP TRIGGER trg_bitacora_no_update
+ERROR 1142 (42000) at line 1: TRIGGER command denied to user 'sitra_prueba'@'localhost' for table `sitra`.`registro_auditoria`
+Intento 2: DELETE FROM transferencia WHERE id = 1
+ERROR 1142 (42000) at line 1: DELETE command denied to user 'sitra_prueba'@'localhost' for table `sitra`.`transferencia`
+Usuario temporal eliminado.
