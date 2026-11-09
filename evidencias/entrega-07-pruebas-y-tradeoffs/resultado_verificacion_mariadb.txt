@@ -1,0 +1,168 @@
+Verificacion de SITRA en MariaDB - 08/11/2026 20:29:22.86
+Motor: 10.4.32-MariaDB
+Comando: mysql -u root -t -v --force sitra < db\pruebas\demo_sustentacion.sql
+Los errores 1062, 4025 y 1644 son ESPERADOS: prueban que la base rechaza lo invalido.
+
+ERROR 1062 (23000) at line 29: Duplicate entry 'OP-20261017-0001' for key 'uq_transf_idempotencia'
+ERROR 4025 (23000) at line 37: CONSTRAINT `ck_transf_monto` failed for `sitra`.`transferencia`
+--------------
+INSERT INTO transferencia (cliente_api_id, cuenta_origen_id, cuenta_destino, monto, estado,
+                           referencia_externa, comprobante_nucleo, created_at, updated_at)
+VALUES ((SELECT id FROM cliente_api WHERE client_id = 'billetera-externa'),
+        (SELECT id FROM cuenta_autorizada WHERE numero_cuenta = 'AH-1001'),
+        'BILLETERA-EXTERNA', 300000, 'CONFIRMADA', 'OP-20261017-0001', 'NUC-0001',
+        TIMESTAMP(CURDATE(), '13:15:00'), TIMESTAMP(CURDATE(), '13:15:00'))
+--------------
+
+--------------
+UPDATE nucleo_simulado_cuenta SET saldo = saldo - 300000 WHERE numero_cuenta = 'AH-1001'
+--------------
+
+--------------
+SELECT id, transferencia_id, numero_cuenta, operacion, resultado, referencia_externa, monto, ocurrido_en
+FROM registro_auditoria
+--------------
+
++----+------------------+---------------+---------------+-----------+--------------------+-----------+---------------------+
+| id | transferencia_id | numero_cuenta | operacion     | resultado | referencia_externa | monto     | ocurrido_en         |
++----+------------------+---------------+---------------+-----------+--------------------+-----------+---------------------+
+|  1 |                1 | AH-1001       | TRANSFERENCIA | EXITOSA   | OP-20261017-0001   | 300000.00 | 2026-11-08 13:15:00 |
++----+------------------+---------------+---------------+-----------+--------------------+-----------+---------------------+
+--------------
+INSERT INTO transferencia (cliente_api_id, cuenta_origen_id, cuenta_destino, monto, estado,
+                           referencia_externa, comprobante_nucleo, created_at, updated_at)
+VALUES ((SELECT id FROM cliente_api WHERE client_id = 'billetera-externa'),
+        (SELECT id FROM cuenta_autorizada WHERE numero_cuenta = 'AH-1001'),
+        'BILLETERA-EXTERNA', 300000, 'CONFIRMADA', 'OP-20261017-0001', 'NUC-0001',
+        TIMESTAMP(CURDATE(), '13:15:00'), TIMESTAMP(CURDATE(), '13:15:00'))
+--------------
+
+--------------
+INSERT INTO transferencia (cliente_api_id, cuenta_origen_id, cuenta_destino, monto, referencia_externa)
+VALUES ((SELECT id FROM cliente_api WHERE client_id = 'billetera-externa'),
+        (SELECT id FROM cuenta_autorizada WHERE numero_cuenta = 'AH-1001'),
+        'BILLETERA-EXTERNA', -50000, 'OP-20261017-0002')
+--------------
+
+--------------
+SELECT a.nombre             AS asociado,
+       r.numero_cuenta      AS cuenta,
+       r.operacion,
+       r.resultado,
+       r.referencia_externa AS codigo_operacion,
+       r.monto,
+       r.motivo,
+       r.ocurrido_en        AS fecha_hora,
+       ca.nombre            AS quien
+FROM registro_auditoria r
+JOIN cuenta_autorizada c ON c.numero_cuenta = r.numero_cuenta
+JOIN asociado a          ON a.id = c.asociado_id
+JOIN cliente_api ca      ON ca.id = r.cliente_api_id
+WHERE a.nombre = 'Jorge Puerta'
+  AND DATE(r.ocurrido_en) = CURDATE()
+ORDER BY r.ocurrido_en, r.id
+--------------
+
++--------------+---------+---------------+-----------+------------------+-----------+--------+---------------------+---------------------------+
+| asociado     | cuenta  | operacion     | resultado | codigo_operacion | monto     | motivo | fecha_hora          | quien                     |
++--------------+---------+---------------+-----------+------------------+-----------+--------+---------------------+---------------------------+
+| Jorge Puerta | AH-1001 | TRANSFERENCIA | EXITOSA   | OP-20261017-0001 | 300000.00 | NULL   | 2026-11-08 13:15:00 | Billetera digital externa |
++--------------+---------+---------------+-----------+------------------+-----------+--------+---------------------+---------------------------+
+--------------
+CALL registrar_transferencia('billetera-externa', 'AH-1001', 'BILLETERA-EXTERNA', 300000, 'OP-20261017-0001', NULL)
+--------------
+
++-----------+-------------+---------------------------------------------------------------------+
+| resultado | donde_queda | motivo                                                              |
++-----------+-------------+---------------------------------------------------------------------+
+| RECHAZADA | Bitácora    | Duplicate entry 'OP-20261017-0001' for key 'uq_transf_idempotencia' |
++-----------+-------------+---------------------------------------------------------------------+
+--------------
+CALL registrar_transferencia('billetera-externa', 'AH-1001', 'BILLETERA-EXTERNA', -50000, 'OP-20261017-0002', NULL)
+--------------
+
++-----------+-------------+-----------------------------------------------------------------+
+| resultado | donde_queda | motivo                                                          |
++-----------+-------------+-----------------------------------------------------------------+
+| RECHAZADA | Bitácora    | CONSTRAINT `ck_transf_monto` failed for `sitra`.`transferencia` |
++-----------+-------------+-----------------------------------------------------------------+
+--------------
+CALL registrar_transferencia('billetera-externa', 'AH-1001', 'BILLETERA-EXTERNA', 5000000, 'OP-20261017-0003', NULL)
+--------------
+
++-----------+---------------------------------------------+----------------------------------+
+| resultado | donde_queda                                 | motivo                           |
++-----------+---------------------------------------------+----------------------------------+
+| RECHAZADA | Transacción (estado RECHAZADA) + bitácora   | Saldo insuficiente en el núcleo  |
++-----------+---------------------------------------------+----------------------------------+
+--------------
+SELECT id, referencia_externa, monto, estado, motivo_rechazo, created_at
+FROM transferencia
+ORDER BY id
+--------------
+
++----+--------------------+------------+------------+----------------------------------+---------------------+
+| id | referencia_externa | monto      | estado     | motivo_rechazo                   | created_at          |
++----+--------------------+------------+------------+----------------------------------+---------------------+
+|  1 | OP-20261017-0001   |  300000.00 | CONFIRMADA | NULL                             | 2026-11-08 13:15:00 |
+|  4 | OP-20261017-0003   | 5000000.00 | RECHAZADA  | Saldo insuficiente en el núcleo  | 2026-11-08 20:29:22 |
++----+--------------------+------------+------------+----------------------------------+---------------------+
+--------------
+SELECT id, transferencia_id, operacion, resultado, referencia_externa, monto, motivo, ocurrido_en
+FROM registro_auditoria
+ORDER BY id
+--------------
+
++----+------------------+---------------+-----------+--------------------+------------+---------------------------------------------------------------------+---------------------+
+| id | transferencia_id | operacion     | resultado | referencia_externa | monto      | motivo                                                              | ocurrido_en         |
++----+------------------+---------------+-----------+--------------------+------------+---------------------------------------------------------------------+---------------------+
+|  1 |                1 | TRANSFERENCIA | EXITOSA   | OP-20261017-0001   |  300000.00 | NULL                                                                | 2026-11-08 13:15:00 |
+|  2 |             NULL | TRANSFERENCIA | RECHAZADA | OP-20261017-0001   |  300000.00 | Duplicate entry 'OP-20261017-0001' for key 'uq_transf_idempotencia' | 2026-11-08 20:29:22 |
+|  3 |             NULL | TRANSFERENCIA | RECHAZADA | OP-20261017-0002   |  -50000.00 | CONSTRAINT `ck_transf_monto` failed for `sitra`.`transferencia`     | 2026-11-08 20:29:22 |
+|  4 |                4 | TRANSFERENCIA | RECHAZADA | OP-20261017-0003   | 5000000.00 | Saldo insuficiente en el núcleo                                     | 2026-11-08 20:29:22 |
++----+------------------+---------------+-----------+--------------------+------------+---------------------------------------------------------------------+---------------------+
+--------------
+SELECT id, operacion, resultado, referencia_externa AS codigo_operacion, monto, motivo, ip_origen, ocurrido_en
+FROM registro_auditoria
+WHERE numero_cuenta = 'AH-1001'
+  AND ocurrido_en BETWEEN '2026-10-01 00:00:00' AND '2026-12-31 23:59:59'
+ORDER BY id
+--------ERROR 1644 (45000) at line 110: registro_auditoria no se puede modificar
+ERROR 1644 (45000) at line 111: registro_auditoria no se puede borrar
+------
+
++----+---------------+-----------+------------------+------------+---------------------------------------------------------------------+-----------+---------------------+
+| id | operacion     | resultado | codigo_operacion | monto      | motivo                                                              | ip_origen | ocurrido_en         |
++----+---------------+-----------+------------------+------------+---------------------------------------------------------------------+-----------+---------------------+
+|  1 | TRANSFERENCIA | EXITOSA   | OP-20261017-0001 |  300000.00 | NULL                                                                | localhost | 2026-11-08 13:15:00 |
+|  2 | TRANSFERENCIA | RECHAZADA | OP-20261017-0001 |  300000.00 | Duplicate entry 'OP-20261017-0001' for key 'uq_transf_idempotencia' | localhost | 2026-11-08 20:29:22 |
+|  3 | TRANSFERENCIA | RECHAZADA | OP-20261017-0002 |  -50000.00 | CONSTRAINT `ck_transf_monto` failed for `sitra`.`transferencia`     | localhost | 2026-11-08 20:29:22 |
+|  4 | TRANSFERENCIA | RECHAZADA | OP-20261017-0003 | 5000000.00 | Saldo insuficiente en el núcleo                                     | localhost | 2026-11-08 20:29:22 |
++----+---------------+-----------+------------------+------------+---------------------------------------------------------------------+-----------+---------------------+
+--------------
+SELECT r.id,
+       IF(r.hash_anterior = COALESCE(LAG(r.hash_actual) OVER (ORDER BY r.id), REPEAT('0', 64)), 'OK', 'ROTA') AS cadena,
+       IF(r.hash_actual = SHA2(CONCAT_WS('|', r.hash_anterior, r.cliente_api_id,
+            COALESCE(r.transferencia_id, '-'), r.numero_cuenta, r.operacion, r.resultado,
+            COALESCE(r.referencia_externa, '-'), COALESCE(r.monto, '-'), COALESCE(r.motivo, '-'),
+            r.ip_origen, r.ocurrido_en), 256), 'OK', 'ALTERADO') AS huella
+FROM registro_auditoria r
+ORDER BY r.id
+--------------
+
++------+--------+--------+
+| id   | cadena | huella |
++------+--------+--------+
+|    1 | OK     | OK     |
+|    2 | OK     | OK     |
+|    3 | OK     | OK     |
+|    4 | OK     | OK     |
++------+--------+--------+
+--------------
+UPDATE registro_auditoria SET monto = 1 WHERE id = 1
+--------------
+
+--------------
+DELETE FROM registro_auditoria WHERE id = 1
+--------------
+
