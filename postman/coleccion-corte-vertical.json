@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "cdc33aaa-9b7e-51b2-85ae-d17dd8686ee8",
     "name": "SITRA — Corte vertical (CRUD de Transferencia + JWT)",
-    "description": "Ejecutar en orden con el Runner de Postman (19 peticiones, todas con tests automáticos). Requisitos: XAMPP con MySQL encendido, db/instalar_todo.sql ejecutado y la API corriendo en el puerto 8080.",
+    "description": "Ejecutar en orden con el Runner de Postman (19 peticiones, todas con tests automáticos; 30 tests en total). Requisitos: XAMPP con MySQL encendido, db/instalar_todo.sql ejecutado y la API corriendo en el puerto 8080.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -767,7 +767,7 @@
       ]
     },
     {
-      "name": "18 HU-03 — bitácora de AH-1001 hoy (200)",
+      "name": "18 HU-03 — bitácora de AH-1001 hoy (200, menos de 5 s)",
       "request": {
         "method": "GET",
         "header": [
@@ -811,7 +811,8 @@
             "exec": [
               "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
               "pm.test(\"Todo quedó registrado: creada, rechazos, corrección y anulación\", function () { const filas = pm.response.json(); const ref = pm.collectionVariables.get(\"ref\"); const ref2 = pm.collectionVariables.get(\"ref2\"); const ops = filas.filter(f => f.referenciaExterna === ref).map(f => f.operacion + \":\" + f.resultado); pm.expect(ops).to.include(\"TRANSFERENCIA:EXITOSA\"); pm.expect(ops).to.include(\"TRANSFERENCIA:RECHAZADA\"); pm.expect(ops).to.include(\"ANULACION:EXITOSA\"); pm.expect(filas.filter(f => f.referenciaExterna === ref2).length).to.be.at.least(2); });",
-              "pm.test(\"Cada fila trae su huella\", function () { pm.response.json().forEach(f => pm.expect(f.hashActual).to.have.lengthOf(64)); });"
+              "pm.test(\"Cada fila trae su huella\", function () { pm.response.json().forEach(f => pm.expect(f.hashActual).to.have.lengthOf(64)); });",
+              "pm.test(\"AC-01: la consulta del auditor responde en menos de 5 s\", function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
             ]
           }
         }
