@@ -11,7 +11,7 @@ Cada carpeta contiene la entrega que corresponde a esa clase del cronograma.
 | `entrega-05-adr-despliegue-arranque/` | 5 | 24/10/2026 | DAS v0.5: vista de despliegue (3.5), ADR-001 a ADR-003 (Sección 4) y arranque del corte vertical |
 | `entrega-06-crud-jwt/` | 6 | 07/11/2026 | DAS v1.0: ADR-004 y ADR-005, repositorio (5.1), SQL (5.2) y CRUD punta a punta con JWT (5.3) |
 | `entrega-07-pruebas-y-tradeoffs/` | 7 | 14/11/2026 | DAS v1.0: pruebas (5.4) y trade-offs (Sección 6); captura del Runner de Postman y salidas de las pruebas (ver abajo) |
-| `entrega-08-entrega-final/` | 8 | 21/11/2026 | DAS v1.1 completo (Secciones 1 a 6) en formato APA |
+| `entrega-08-entrega-final/` | 8 | 21/11/2026 | DAS v1.2 completo en Word y PDF (formato APA y estructura de la entrega final) |
 
 Fechas de subida a GitHub (pueden diferir de la fecha de la clase):
 
@@ -63,8 +63,18 @@ Se incorporaron las aclaraciones del cliente que no se habían considerado:
 
 ## Cambios de la versión 1.1 (revisión de trazabilidad)
 
-- Se corrigen los hallazgos H-01 a H-12 de la revisión (detalle en el Anexo B del DAS v1.1).
+- Se corrigen los hallazgos H-01 a H-12 de la revisión (detalle en el Apéndice E del DAS).
 - Se agregan el Maven Wrapper, la creación de la base por consola, el script que genera las evidencias,
   la prueba de concurrencia y el test de tiempo de respuesta de la consulta del auditor (30 tests en Postman).
 - El DAS pasa a formato APA 7: portada, resumen, glosario de términos técnicos, tablas y figuras con
   número y título, y referencias.
+
+## Cambios de la versión 1.2 (estructura de la entrega final)
+
+- El DAS sigue la estructura oficial de la entrega final: páginas preliminares (portada, control de versiones,
+  tabla de contenido, lista de tablas y lista de figuras generadas por Word) y numeración 1., 1.1 y 1.1.1.
+- Nuevas secciones 1.5 (pregunta al cliente y supuestos) y 5.5 (instalación y ejecución, con los problemas
+  frecuentes y su solución).
+- Apéndices A a F: lista de chequeo, script DDL completo, extractos del código, evidencias reales de la
+  ejecución del 08/11/2026 (Postman 30/30, JUnit 21/21, MariaDB), historial de commits y glosario.
+- En `entrega-08-entrega-final/` el DAS v1.2 reemplaza al v1.1, en Word y PDF.

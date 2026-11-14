@@ -91,7 +91,7 @@ scripts\generar_evidencias.cmd
 
 El script recrea la base, ejecuta la verificación del esquema en MariaDB, la prueba del usuario de
 mínimo privilegio, la prueba de concurrencia y las pruebas JUnit, y guarda cada salida en
-`evidencias/entrega-07-pruebas-y-tradeoffs/` (los archivos que cita el DAS en las secciones 5.2, 5.4 y 6.1).
+`evidencias/entrega-07-pruebas-y-tradeoffs/` (los archivos que cita el DAS en las secciones 5.2, 5.4 y 6.1 y en el Apéndice D).
 La API no necesita estar corriendo. Tarda unos minutos la primera vez porque descarga Maven.
 
 ### Credenciales de prueba (solo laboratorio)
@@ -157,7 +157,7 @@ de huellas.
 
 | Carpeta | Contenido |
 |---|---|
-| `docs/` | DAS v1.1 en Word y PDF (formato APA), `adr/` (ADR-001 a ADR-005) y `diagramas/` (PlantUML + PNG) |
+| `docs/` | DAS v1.2 en Word y PDF (formato APA, estructura de la entrega final), `adr/` (ADR-001 a ADR-005) y `diagramas/` (PlantUML + PNG) |
 | `db/migrations/` | `V1` tablas · `V2` triggers de la bitácora · `V3` registro de rechazados · `V4` IP de origen |
 | `db/` | `instalar_todo.sql`, `datos_prueba.sql`, `pruebas/` (demostración y prueba de concurrencia), `produccion/usuario_minimo_privilegio.sql` |
 | `scripts/` | `generar_evidencias.cmd`: ejecuta las verificaciones y guarda sus salidas en `evidencias/` |
@@ -181,4 +181,4 @@ fecha de la clase (ver el control de versiones del DAS).
 | 5 | 24/10/2026 | ADR, Vista de Despliegue y arranque del corte vertical | 06/11/2026 | ✅ [`entrega-05`](evidencias/entrega-05-adr-despliegue-arranque) |
 | 6 | 07/11/2026 | CRUD punta a punta con JWT (5.3) | 06/11/2026 | ✅ [`entrega-06`](evidencias/entrega-06-crud-jwt) |
 | 7 | 14/11/2026 | Pruebas, trade-offs y riesgos (5.4 y 6) | 06/11/2026 | Adelantada (06/11) [`entrega-07`](evidencias/entrega-07-pruebas-y-tradeoffs) |
-| 8 | 21/11/2026 | Entrega final: DAS v1.1 + repositorio | 06/11/2026 (v1.0) y 07/11/2026 (v1.1) | Adelantada (06/11) [`entrega-08`](evidencias/entrega-08-entrega-final) |
+| 8 | 21/11/2026 | Entrega final: DAS v1.2 + repositorio | 06/11/2026 (v1.0), 07/11/2026 (v1.1) y 13/11/2026 (v1.2) | Adelantada (06/11) [`entrega-08`](evidencias/entrega-08-entrega-final) |
